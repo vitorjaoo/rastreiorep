@@ -42,6 +42,7 @@ def criar_tabelas():
             valor           REAL,
             data_emissao    TEXT,
             status          TEXT DEFAULT 'ativo',
+            observacao      TEXT,
             pdf_base64      TEXT,
             nome_arquivo    TEXT,
             codigo_rastreio TEXT,
@@ -50,6 +51,11 @@ def criar_tabelas():
             FOREIGN KEY (cliente_id) REFERENCES clientes(id)
         )
     """)
+    try:
+        conn.execute('ALTER TABLE notas_fiscais ADD COLUMN observacao TEXT')
+        conn.commit()
+    except Exception:
+        pass
     conn.execute("""
         CREATE TABLE IF NOT EXISTS titulos (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,7 +107,7 @@ def criar_cliente(nome, cnpj, email, whatsapp, senha_hash):
 def listar_nfs(cliente_id: int):
     conn = get_conn()
     cur = conn.execute(
-        """SELECT id, numero_nf, valor, data_emissao, status,
+        """SELECT id, numero_nf, valor, data_emissao, status, observacao,
                   nome_arquivo, codigo_rastreio, transportadora, criado_em
            FROM notas_fiscais WHERE cliente_id = ? ORDER BY criado_em DESC""",
         [cliente_id]
@@ -113,7 +119,7 @@ def listar_todas_nfs():
     conn = get_conn()
     cur = conn.execute(
         """SELECT nf.id, c.nome as cliente, nf.numero_nf, nf.valor,
-                  nf.data_emissao, nf.status, nf.nome_arquivo,
+                  nf.data_emissao, nf.status, nf.observacao, nf.nome_arquivo,
                   nf.codigo_rastreio, nf.transportadora, nf.criado_em
            FROM notas_fiscais nf
            JOIN clientes c ON c.id = nf.cliente_id
@@ -123,15 +129,25 @@ def listar_todas_nfs():
 
 
 def inserir_nf(cliente_id, numero_nf, valor, data_emissao, pdf_base64,
-               nome_arquivo, codigo_rastreio="", transportadora=""):
+               nome_arquivo, codigo_rastreio="", transportadora="",
+               status="ativo", observacao=""):
     conn = get_conn()
     conn.execute(
         """INSERT INTO notas_fiscais
            (cliente_id, numero_nf, valor, data_emissao, pdf_base64,
-            nome_arquivo, codigo_rastreio, transportadora)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            nome_arquivo, codigo_rastreio, transportadora, status, observacao)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [cliente_id, numero_nf, valor, data_emissao,
-         pdf_base64, nome_arquivo, codigo_rastreio, transportadora]
+         pdf_base64, nome_arquivo, codigo_rastreio, transportadora, status, observacao]
+    )
+    conn.commit()
+
+
+def atualizar_status_nf(nf_id, status, observacao=""):
+    conn = get_conn()
+    conn.execute(
+        "UPDATE notas_fiscais SET status=?, observacao=? WHERE id=?",
+        [status, observacao, nf_id]
     )
     conn.commit()
 
